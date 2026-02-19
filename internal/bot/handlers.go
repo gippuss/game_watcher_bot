@@ -58,6 +58,7 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 	if err != nil {
 		return c.Send("Ошибка разбора CSV: " + err.Error())
 	}
+	_ = c.Send("Файл успешно скачан, приступаю к обработке")
 
 	ctx := context.Background()
 	added := 0
@@ -102,6 +103,7 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 			continue
 		}
 		added++
+		_ = c.Send(fmt.Sprintf("Игра %q добавлена.", info.Name))
 	}
 
 	return c.Send(fmt.Sprintf("Добавлено игр: %d.", added))
