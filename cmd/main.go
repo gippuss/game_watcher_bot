@@ -5,6 +5,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/gippuss/game_watcher_bot/internal/bot"
 	"github.com/gippuss/game_watcher_bot/internal/repository"
@@ -23,7 +24,15 @@ func main() {
 		connStr = "postgres://postgres:postgres@localhost:5432/game_watcher?sslmode=disable"
 	}
 
-	pool, err := pgxpool.New(ctx, connStr)
+	poolConfig, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		log.Fatalf("parse db config: %v", err)
+	}
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		log.Fatalf("error to db connect: %v", err)
 	}
