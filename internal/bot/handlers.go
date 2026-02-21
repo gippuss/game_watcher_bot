@@ -81,7 +81,7 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось загрузить страницу: %v", i+1, gameURL, err))
 			continue
 		}
-		if info.Name == "" {
+		if info == nil || info.Name == "" {
 			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось получить название со страницы", i+1, gameURL))
 			continue
 		}
@@ -102,8 +102,8 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 			_ = c.Send(fmt.Sprintf("Строка %d (%q): %v", i+1, info.Name, err))
 			continue
 		}
-		added++
 		_ = c.Send(fmt.Sprintf("Игра %q добавлена.", info.Name))
+		added++
 	}
 
 	return c.Send(fmt.Sprintf("Добавлено игр: %d.", added))

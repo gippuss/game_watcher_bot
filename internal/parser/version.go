@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,8 +36,11 @@ type GameInfo struct {
 // Для byrutgame.org — из .hname h1 и div#version.
 func FetchGameInfo(ctx context.Context, rawURL string) (*GameInfo, error) {
 	html, err := fetchPage(ctx, rawURL)
-	if err != nil || html == "" {
+	if err != nil {
 		return nil, err
+	}
+	if html == "" {
+		return nil, errors.New("страница пуста")
 	}
 	u, _ := url.Parse(rawURL)
 	if u != nil && isByrutHost(u.Hostname()) {
@@ -101,8 +105,8 @@ func fetchPageViaFlareSolverr(ctx context.Context, flaresolverrBaseURL, targetUR
 		return "", nil
 	}
 	var result struct {
-		Status  string `json:"status"`
-		Message string `json:"message"`
+		Status   string `json:"status"`
+		Message  string `json:"message"`
 		Solution *struct {
 			Response string `json:"response"`
 		} `json:"solution"`

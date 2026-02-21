@@ -17,11 +17,11 @@ func main() {
 
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
-		log.Fatal("TELEGRAM_BOT_TOKEN не задан")
+		log.Fatal("failed to get telegram bot token")
 	}
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		connStr = "postgres://postgres:postgres@localhost:5432/game_watcher?sslmode=disable"
+		log.Fatal("failed to get database url")
 	}
 
 	poolConfig, err := pgxpool.ParseConfig(connStr)
@@ -48,6 +48,6 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	slog.Info("bot started")
+	slog.Info("bot started2")
 	tgBot.Start()
 }
