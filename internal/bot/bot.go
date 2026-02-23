@@ -23,7 +23,6 @@ func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
 	tg.Handle(telebot.OnDocument, b.handleUpload)
 	tg.Handle("/check", b.handleCheck)
 	tg.Handle("/list", b.handleList)
-	tg.Handle("/updates", b.handleUpdates)
 	tg.Handle("/updated", b.handleUpdated)
 	tg.Handle("/remove", b.handleRemove)
 

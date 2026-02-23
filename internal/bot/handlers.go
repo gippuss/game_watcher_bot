@@ -25,11 +25,10 @@ func (b *Bot) handleStart(c telebot.Context) error {
 Команды:
 /start - это сообщение
 /upload - загрузить CSV (ссылка на игру, установленная версия)
-/check - проверить обновления по всем играм
-/list - список всех игр
-/updates - игры с доступными обновлениями
-/updated <название1, название2, …> - отметить игры как обновлённые (установленная версия = актуальная)
-/remove <название> - удалить игру`
+/check - получисть список игр с устаревшими версиями и обновить бд
+/list - количество игр
+/updated <название1, название2, ...> - отметить игры как обновлённые (установленная версия = актуальная)
+/remove <название1, название2, ...> - удалить игры`
 	return c.Send(text)
 }
 
@@ -58,13 +57,13 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 	if err != nil {
 		return c.Send("Ошибка разбора CSV: " + err.Error())
 	}
-	_ = c.Send("Файл успешно скачан, приступаю к обработке")
+	_ = c.Send("Файл успешно скачан, приступаю к обработке.")
 
 	ctx := context.Background()
 	added := 0
 	for i, row := range records {
 		if len(row) < 2 {
-			_ = c.Send(fmt.Sprintf("Строка %d: нужны две колонки (ссылка, установленная версия)", i+1))
+			_ = c.Send(fmt.Sprintf("Строка %d: нужны две колонки (ссылка, установленная версия).", i+1))
 			continue
 		}
 		gameURL := strings.TrimSpace(row[0])
@@ -78,11 +77,11 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 
 		info, err := parser.FetchGameInfo(ctx, gameURL)
 		if err != nil {
-			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось загрузить страницу: %v", i+1, gameURL, err))
+			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось загрузить страницу: %v.", i+1, gameURL, err))
 			continue
 		}
 		if info == nil || info.Name == "" {
-			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось получить название со страницы", i+1, gameURL))
+			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось получить название со страницы.", i+1, gameURL))
 			continue
 		}
 
@@ -119,19 +118,31 @@ func (b *Bot) handleCheck(c telebot.Context) error {
 		return c.Send("Список игр пуст. Сначала загрузите CSV через /upload.")
 	}
 
-	if err := c.Send("Проверяю обновления…"); err != nil {
+	if err := c.Send("Проверяю обновления. Игры, которые нужно обновить выведутся ниже."); err != nil {
 		return err
 	}
 	updated := 0
 	for _, g := range games {
 		latest, err := parser.LatestVersion(ctx, g.WebsiteURL)
 		if err != nil {
+			_ = c.Send(fmt.Sprintf("Ошибка при получении актуальной версии игры %s: %v.", g.Name, err))
 			slog.Error("failed to get latest version", "error", err)
 			continue
 		}
 		if latest == "" {
+			slog.Error("failed to get latest version, empty")
 			continue
 		}
+
+		if !strings.EqualFold(g.CurrentVersion, latest) {
+			_ = c.Send(fmt.Sprintf("<i>%s</i>\n<b>Установлено:</b> %s\n<b>Доступно:</b> %s\n%s\n\n",
+				html.EscapeString(g.Name), html.EscapeString(g.CurrentVersion),
+				html.EscapeString(*g.LatestVersion), html.EscapeString(g.WebsiteURL)),
+				&telebot.SendOptions{ParseMode: telebot.ModeHTML},
+			)
+			updated++
+		}
+
 		if strings.EqualFold(lo.FromPtr(g.LatestVersion), latest) {
 			continue
 		}
@@ -140,11 +151,11 @@ func (b *Bot) handleCheck(c telebot.Context) error {
 			model.TableGameColumnLatestVersion: latest,
 			model.TableGameColumnUpdatedAt:     time.Now(),
 		}); err != nil {
+			_ = c.Send(fmt.Sprintf("Ошибка при сохранении игры %s: %v.", g.Name, err))
 			continue
 		}
-		updated++
 	}
-	return c.Send(fmt.Sprintf("Проверено игр: %d. Обновлена информация о версиях: %d.", len(games), updated))
+	return c.Send(fmt.Sprintf("Проверено игр: %d. Необходимо обновить игр: %d.", len(games), updated))
 }
 
 func (b *Bot) handleList(c telebot.Context) error {
@@ -157,32 +168,12 @@ func (b *Bot) handleList(c telebot.Context) error {
 		return c.Send("Список игр пуст.")
 	}
 
-	var sb strings.Builder
-	sb.WriteString("Список игр:\n\n")
-	for _, g := range games {
-		sb.WriteString(fmt.Sprintf("• %s\n  %s\n\n", g.Name, g.WebsiteURL))
-	}
-	return c.Send(sb.String())
-}
-
-func (b *Bot) handleUpdates(c telebot.Context) error {
-	ctx := context.Background()
-	games, err := b.gamesQuery.GetGamesWithUpdates(ctx)
+	gamesForUpdate, err := b.gamesQuery.GetGamesWithUpdates(ctx)
 	if err != nil {
 		return c.Send("Ошибка БД: " + err.Error())
 	}
-	if len(games) == 0 {
-		return c.Send("Нет игр с доступными обновлениями. Используйте /check для проверки.")
-	}
 
-	var sb strings.Builder
-	sb.WriteString("Игры, которые нужно обновить:\n\n")
-	for _, g := range games {
-		sb.WriteString(fmt.Sprintf("• <i>%s</i>\n  <b>Установлено:</b> %s\n  <b>Доступно:</b> %s\n  %s\n\n",
-			html.EscapeString(g.Name), html.EscapeString(g.CurrentVersion),
-			html.EscapeString(*g.LatestVersion), html.EscapeString(g.WebsiteURL)))
-	}
-	return c.Send(sb.String(), &telebot.SendOptions{ParseMode: telebot.ModeHTML})
+	return c.Send(fmt.Sprintf("В базе сейчас %d игр, требуется обновление у %d игр.", len(games), len(gamesForUpdate)))
 }
 
 func (b *Bot) handleUpdated(c telebot.Context) error {
@@ -190,9 +181,18 @@ func (b *Bot) handleUpdated(c telebot.Context) error {
 	if payload == "" {
 		return c.Send("Использование: /updated <название1>, <название2>, … — игры, которые вы уже обновили на устройстве.")
 	}
+	ctx := context.Background()
+
+	if strings.EqualFold(payload, "all") {
+		count, err := b.gamesQuery.SyncAllGames(ctx)
+		if err != nil {
+			_ = c.Send("Ошибка БД: " + err.Error())
+			return nil
+		}
+		return c.Send(fmt.Sprintf("Обновлено игр: %d", count))
+	}
 
 	names := splitNames(payload)
-	ctx := context.Background()
 	updated := 0
 	for _, name := range names {
 		if name == "" {
