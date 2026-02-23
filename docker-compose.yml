@@ -15,6 +15,7 @@ services:
       - app
 
   app:
+    image: ${DOCKER_USERNAME:-local}/game-watcher-bot:latest
     build: .
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}

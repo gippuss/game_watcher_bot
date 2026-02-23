@@ -29,7 +29,6 @@ func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
 	return b, nil
 }
 
-// Start запускает polling.
 func (b *Bot) Start() {
 	b.tg.Start()
 }
