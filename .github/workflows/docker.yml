@@ -65,4 +65,4 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           PROJECT_PATH=$(echo -n "$SSH_PROJECT_PATH" | tr -d '\r\n' | xargs)
-          sshpass -e ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "cd $PROJECT_PATH && export DOCKER_USERNAME=$DOCKER_USERNAME && docker compose pull app && docker compose up --build -d app && docker image prune -f"
+          sshpass -e ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "cd $PROJECT_PATH && export DOCKER_USERNAME=$DOCKER_USERNAME && docker compose pull app && docker compose up -d --force-recreate app && docker image prune -f"
