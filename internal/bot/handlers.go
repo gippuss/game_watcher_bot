@@ -179,7 +179,7 @@ func (b *Bot) handleList(c telebot.Context) error {
 func (b *Bot) handleUpdated(c telebot.Context) error {
 	payload := strings.TrimSpace(c.Message().Payload)
 	if payload == "" {
-		return c.Send("Использование: /updated <название1>, <название2>, … — игры, которые вы уже обновили на устройстве.")
+		return c.Send("Использование: /updated <название1>, <название2>, ... — игры, которые вы уже обновили на устройстве.")
 	}
 	ctx := context.Background()
 
@@ -237,19 +237,28 @@ func splitNames(payload string) []string {
 }
 
 func (b *Bot) handleRemove(c telebot.Context) error {
-	args := strings.TrimSpace(c.Message().Payload)
-	if args == "" {
-		return c.Send("Использование: /remove <название игры>")
+	payload := strings.TrimSpace(c.Message().Payload)
+	if payload == "" {
+		return c.Send("Использование: /remove <название1>, <название2>, ... — игры, которые нужно удалить.")
 	}
 
 	ctx := context.Background()
 
-	err := b.gamesQuery.Delete(ctx, model.GameFilter{Name: &args})
-	if err != nil {
-		if errors.Is(err, datagate.ErrNoRowsAffected) {
-			return c.Send("Игра с таким названием не найдена.")
+	names := splitNames(payload)
+	updated := 0
+	for _, name := range names {
+		if name == "" {
+			continue
 		}
-		return c.Send("Не удалось удалить: " + err.Error())
+
+		err := b.gamesQuery.Delete(ctx, model.GameFilter{Name: &name})
+		if err != nil {
+			if errors.Is(err, datagate.ErrNoRowsAffected) {
+				return c.Send(fmt.Sprintf("Игра с названием %s не найдена.", name))
+			}
+			return c.Send("Не удалось удалить игру %s: %v", name, err.Error())
+		}
+		updated++
 	}
-	return c.Send(fmt.Sprintf("Игра %q удалена.", args))
+	return c.Send(fmt.Sprintf("Успешно удалены: %d из %d.", updated, len(names)))
 }
