@@ -1,6 +1,9 @@
 package bot
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/gippuss/game_watcher_bot/internal/repository"
 	"gopkg.in/telebot.v3"
 )
@@ -8,6 +11,8 @@ import (
 type Bot struct {
 	tg         *telebot.Bot
 	gamesQuery repository.GamesQuery
+
+	concurrency int
 }
 
 func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
@@ -16,7 +21,11 @@ func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
 		return nil, err
 	}
 
-	b := &Bot{tg: tg, gamesQuery: gamesQuery}
+	b := &Bot{
+		tg:          tg,
+		gamesQuery:  gamesQuery,
+		concurrency: concurrencyFromEnv(),
+	}
 
 	tg.Handle("/start", b.handleStart)
 	tg.Handle("/upload", b.handleUpload)
@@ -30,5 +39,7 @@ func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
 }
 
 func (b *Bot) Start() {
+	slog.Info("bot started")
+	slog.Info(fmt.Sprintf("level of concurrency: %d", b.concurrency))
 	b.tg.Start()
 }

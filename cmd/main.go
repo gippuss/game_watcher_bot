@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"log/slog"
 	"os"
 	"time"
 
@@ -48,6 +47,5 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	slog.Info("bot started info")
 	tgBot.Start()
 }

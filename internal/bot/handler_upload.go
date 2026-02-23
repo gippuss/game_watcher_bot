@@ -50,9 +50,8 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 	_ = c.Send("Файл успешно скачан, приступаю к обработке.")
 
 	ctx := context.Background()
-	const maxConcurrent = 3
 	var sendMu sync.Mutex
-	sem := make(chan struct{}, maxConcurrent)
+	sem := make(chan struct{}, b.concurrency)
 	var wg sync.WaitGroup
 	var added atomic.Int64
 
