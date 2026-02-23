@@ -7,12 +7,20 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gippuss/game_watcher_bot/internal/model"
 	"github.com/gippuss/game_watcher_bot/internal/parser"
 	"gopkg.in/telebot.v3"
 )
+
+type uploadTask struct {
+	rowNum     int
+	gameURL    string
+	currentVer string
+}
 
 func (b *Bot) handleUpload(c telebot.Context) error {
 	doc := c.Message().Document
@@ -42,7 +50,12 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 	_ = c.Send("Файл успешно скачан, приступаю к обработке.")
 
 	ctx := context.Background()
-	added := 0
+	const maxConcurrent = 3
+	var sendMu sync.Mutex
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+	var added atomic.Int64
+
 	for i, row := range records {
 		if len(row) < 2 {
 			_ = c.Send(fmt.Sprintf("Строка %d: нужны две колонки (ссылка, установленная версия).", i+1))
@@ -57,35 +70,54 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 			currentVer = "—"
 		}
 
-		info, err := parser.FetchGameInfo(ctx, gameURL)
-		if err != nil {
-			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось загрузить страницу: %v.", i+1, gameURL, err))
-			continue
-		}
-		if info == nil || info.Name == "" {
-			_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось получить название со страницы.", i+1, gameURL))
-			continue
-		}
-
-		var latestVer *string
-		if info.LatestVersion != "" {
-			latestVer = &info.LatestVersion
-		}
-		_, err = b.gamesQuery.Create(ctx, model.Game{
-			Name:           info.Name,
-			WebsiteURL:     gameURL,
-			CurrentVersion: currentVer,
-			LatestVersion:  latestVer,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		})
-		if err != nil {
-			_ = c.Send(fmt.Sprintf("Строка %d (%q): %v", i+1, info.Name, err))
-			continue
-		}
-		_ = c.Send(fmt.Sprintf("Игра %q добавлена.", info.Name))
-		added++
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			b.processUploadRow(ctx, c, uploadTask{rowNum: i + 1, gameURL: gameURL, currentVer: currentVer}, &added, &sendMu)
+		}()
 	}
 
-	return c.Send(fmt.Sprintf("Добавлено игр: %d.", added))
+	wg.Wait()
+	return c.Send(fmt.Sprintf("Добавлено игр: %d.", added.Load()))
+}
+
+func (b *Bot) processUploadRow(ctx context.Context, c telebot.Context, task uploadTask, added *atomic.Int64, sendMu *sync.Mutex) {
+	info, err := parser.FetchGameInfo(ctx, task.gameURL)
+	if err != nil {
+		sendMu.Lock()
+		_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось загрузить страницу: %v.", task.rowNum, task.gameURL, err))
+		sendMu.Unlock()
+		return
+	}
+	if info == nil || info.Name == "" {
+		sendMu.Lock()
+		_ = c.Send(fmt.Sprintf("Строка %d (%s): не удалось получить название со страницы.", task.rowNum, task.gameURL))
+		sendMu.Unlock()
+		return
+	}
+
+	var latestVer *string
+	if info.LatestVersion != "" {
+		latestVer = &info.LatestVersion
+	}
+	_, err = b.gamesQuery.Create(ctx, model.Game{
+		Name:           info.Name,
+		WebsiteURL:     task.gameURL,
+		CurrentVersion: task.currentVer,
+		LatestVersion:  latestVer,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	})
+	if err != nil {
+		sendMu.Lock()
+		_ = c.Send(fmt.Sprintf("Строка %d (%q): %v", task.rowNum, info.Name, err))
+		sendMu.Unlock()
+		return
+	}
+	sendMu.Lock()
+	_ = c.Send(fmt.Sprintf("Игра %q добавлена.", info.Name))
+	sendMu.Unlock()
+	added.Add(1)
 }

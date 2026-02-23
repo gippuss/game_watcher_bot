@@ -30,7 +30,7 @@ func (b *Bot) handleCheck(c telebot.Context) error {
 		return err
 	}
 
-	const maxConcurrent = 6
+	const maxConcurrent = 3
 	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 	var updatedCount atomic.Int64
