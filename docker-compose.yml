@@ -20,12 +20,16 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      FLARESOLVERR_URL: ${FLARESOLVERR_URL:-http://flaresolverr:8191/v1}
+      FLARESOLVERR_URL: ${FLARESOLVERR_URL}
       CONCURRENCY: ${CONCURRENCY}
     depends_on:
       migrations:
         condition: service_completed_successfully
       flaresolverr:
+        condition: service_started
+      flaresolverr2:
+        condition: service_started
+      flaresolverr3:
         condition: service_started
     restart: unless-stopped
     container_name: watcher_app
@@ -38,6 +42,24 @@ services:
       LOG_LEVEL: info
     restart: unless-stopped
     container_name: flaresolverr
+    networks:
+      - app
+
+  flaresolverr2:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      LOG_LEVEL: info
+    restart: unless-stopped
+    container_name: flaresolverr2
+    networks:
+      - app
+
+  flaresolverr3:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      LOG_LEVEL: info
+    restart: unless-stopped
+    container_name: flaresolverr3
     networks:
       - app
 

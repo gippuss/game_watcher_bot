@@ -10,6 +10,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -63,14 +65,47 @@ func LatestVersion(ctx context.Context, rawURL string) (string, error) {
 
 func fetchPage(ctx context.Context, rawURL string) (string, error) {
 	u, _ := url.Parse(rawURL)
-	if u != nil && isByrutHost(u.Hostname()) && os.Getenv("FLARESOLVERR_URL") != "" {
-		return fetchPageViaFlareSolverr(ctx, os.Getenv("FLARESOLVERR_URL"), rawURL)
+	if u != nil && isByrutHost(u.Hostname()) {
+		baseURL := getFlareSolverrBaseURL()
+		if baseURL != "" {
+			return fetchPageViaFlareSolverr(ctx, baseURL, rawURL)
+		}
 	}
 	return fetchPageDirect(ctx, rawURL)
 }
 
 func isByrutHost(host string) bool {
 	return host == "byrutgame.org" || strings.HasSuffix(host, ".byrutgame.org")
+}
+
+// flaresolverrURLs — список URL FlareSolverr из FLARESOLVERR_URL (через запятую), round-robin счётчик.
+var (
+	flaresolverrURLs     []string
+	flaresolverrNext     atomic.Uint32
+	flaresolverrURLsOnce sync.Once
+)
+
+func getFlareSolverrBaseURL() string {
+	flaresolverrURLsOnce.Do(func() {
+		s := os.Getenv("FLARESOLVERR_URL")
+		if s == "" {
+			return
+		}
+		for _, u := range strings.Split(s, ",") {
+			u = strings.TrimSpace(u)
+			if u != "" {
+				flaresolverrURLs = append(flaresolverrURLs, u)
+			}
+		}
+	})
+	if len(flaresolverrURLs) == 0 {
+		return ""
+	}
+	if len(flaresolverrURLs) == 1 {
+		return flaresolverrURLs[0]
+	}
+	n := flaresolverrNext.Add(1)
+	return flaresolverrURLs[int(n)%len(flaresolverrURLs)]
 }
 
 // fetchPageViaFlareSolverr запрашивает страницу через FlareSolverr (обходит Cloudflare).
