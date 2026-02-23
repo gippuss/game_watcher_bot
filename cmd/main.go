@@ -48,6 +48,6 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	slog.Info("bot started")
+	slog.Info("bot started123")
 	tgBot.Start()
 }
