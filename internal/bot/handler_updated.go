@@ -13,7 +13,7 @@ import (
 func (b *Bot) handleUpdated(c telebot.Context) error {
 	payload := strings.TrimSpace(c.Message().Payload)
 	if payload == "" {
-		return c.Send("Использование: /updated <название1>, <название2>, ... — игры, которые вы уже обновили на устройстве.")
+		return c.Send("Использование: /updated <название1>, <название2>, ... — игры, которые вы уже обновили. Названия с запятой — в кавычках: \"Игра, часть 2\".")
 	}
 	ctx := context.Background()
 
