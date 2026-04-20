@@ -15,10 +15,10 @@ import (
 	"time"
 )
 
-// Byrutgame: название в <div class="hname"><h1>...</h1>, версия в <div id="version">...</div>
+// Byrutgame: название в <div class="hname"><h1>...</h1>, версия в <div class="subhnamever js-ver">...</div>
 var (
 	byrutNameRE    = regexp.MustCompile(`class="hname"[^>]*>\s*<h1>([^<]*)</h1>`)
-	byrutVersionRE = regexp.MustCompile(`id="version"[^>]*>([^<]*)</div>`)
+	byrutVersionRE = regexp.MustCompile(`class="subhnamever js-ver"[^>]*>([^<]*)</div>`)
 )
 
 // Паттерны для прочих сайтов (semver и похожие).
@@ -31,7 +31,7 @@ var versionPatterns = []*regexp.Regexp{
 // GameInfo — название и актуальная версия игры со страницы.
 type GameInfo struct {
 	Name          string // из <div class="hname"><h1>...</h1>
-	LatestVersion string // из <div id="version">...</div>
+	LatestVersion string // из <div class="subhnamever js-ver">...</div>
 }
 
 // FetchGameInfo загружает страницу по URL и извлекает название и версию (один запрос).
