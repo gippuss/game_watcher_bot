@@ -1,65 +1,16 @@
 services:
-  migrations:
-    image: ghcr.io/kukymbr/goose-docker:3.24.2
-    environment:
-      GOOSE_DRIVER: postgres
-      GOOSE_DBSTRING: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      GOOSE_MIGRATION_DIR: /migrations
-    volumes:
-      - ./migrations:/migrations
-    depends_on:
-      db:
-        condition: service_healthy
-    container_name: migrator
-    networks:
-      - app
-
   app:
     image: ${DOCKER_USERNAME:-local}/game-watcher-bot:latest
     build: .
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      FLARESOLVERR_URL: ${FLARESOLVERR_URL}
       CONCURRENCY: ${CONCURRENCY}
     depends_on:
-      migrations:
-        condition: service_completed_successfully
-      flaresolverr:
-        condition: service_started
-      flaresolverr2:
-        condition: service_started
-      flaresolverr3:
-        condition: service_started
+      db:
+        condition: service_healthy
     restart: unless-stopped
     container_name: watcher_app
-    networks:
-      - app
-
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    environment:
-      LOG_LEVEL: info
-    restart: unless-stopped
-    container_name: flaresolverr
-    networks:
-      - app
-
-  flaresolverr2:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    environment:
-      LOG_LEVEL: info
-    restart: unless-stopped
-    container_name: flaresolverr2
-    networks:
-      - app
-
-  flaresolverr3:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    environment:
-      LOG_LEVEL: info
-    restart: unless-stopped
-    container_name: flaresolverr3
     networks:
       - app
 

@@ -14,5 +14,6 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /game_watcher_bot .
+COPY migrations ./migrations
 
 ENTRYPOINT ["./game_watcher_bot"]

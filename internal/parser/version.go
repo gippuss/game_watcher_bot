@@ -1,17 +1,12 @@
 package parser
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -64,99 +59,11 @@ func LatestVersion(ctx context.Context, rawURL string) (string, error) {
 }
 
 func fetchPage(ctx context.Context, rawURL string) (string, error) {
-	u, _ := url.Parse(rawURL)
-	if u != nil && isByrutHost(u.Hostname()) {
-		baseURL := getFlareSolverrBaseURL()
-		if baseURL != "" {
-			return fetchPageViaFlareSolverr(ctx, baseURL, rawURL)
-		}
-	}
 	return fetchPageDirect(ctx, rawURL)
 }
 
 func isByrutHost(host string) bool {
 	return host == "byrutgame.org" || strings.HasSuffix(host, ".byrutgame.org")
-}
-
-// flaresolverrURLs — список URL FlareSolverr из FLARESOLVERR_URL (через запятую), round-robin счётчик.
-var (
-	flaresolverrURLs     []string
-	flaresolverrNext     atomic.Uint32
-	flaresolverrURLsOnce sync.Once
-)
-
-func getFlareSolverrBaseURL() string {
-	flaresolverrURLsOnce.Do(func() {
-		s := os.Getenv("FLARESOLVERR_URL")
-		if s == "" {
-			return
-		}
-		for _, u := range strings.Split(s, ",") {
-			u = strings.TrimSpace(u)
-			if u != "" {
-				flaresolverrURLs = append(flaresolverrURLs, u)
-			}
-		}
-	})
-	if len(flaresolverrURLs) == 0 {
-		return ""
-	}
-	if len(flaresolverrURLs) == 1 {
-		return flaresolverrURLs[0]
-	}
-	n := flaresolverrNext.Add(1)
-	return flaresolverrURLs[int(n)%len(flaresolverrURLs)]
-}
-
-// fetchPageViaFlareSolverr запрашивает страницу через FlareSolverr (обходит Cloudflare).
-func fetchPageViaFlareSolverr(ctx context.Context, flaresolverrBaseURL, targetURL string) (string, error) {
-	body := struct {
-		Cmd        string `json:"cmd"`
-		URL        string `json:"url"`
-		MaxTimeout int    `json:"maxTimeout"`
-	}{
-		Cmd:        "request.get",
-		URL:        targetURL,
-		MaxTimeout: 60000,
-	}
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return "", err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, flaresolverrBaseURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 90 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", nil
-	}
-	var result struct {
-		Status   string `json:"status"`
-		Message  string `json:"message"`
-		Solution *struct {
-			Response string `json:"response"`
-		} `json:"solution"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if result.Status != "ok" || result.Solution == nil {
-		return "", nil
-	}
-	html := result.Solution.Response
-	if len(html) > 512*1024 {
-		html = html[:512*1024]
-	}
-	return html, nil
 }
 
 func fetchPageDirect(ctx context.Context, rawURL string) (string, error) {

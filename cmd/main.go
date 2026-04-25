@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"os"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/gippuss/game_watcher_bot/internal/bot"
 	"github.com/gippuss/game_watcher_bot/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 func main() {
@@ -21,6 +24,10 @@ func main() {
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		log.Fatal("failed to get database url")
+	}
+
+	if err := runMigrations(connStr); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
 	}
 
 	poolConfig, err := pgxpool.ParseConfig(connStr)
@@ -48,4 +55,18 @@ func main() {
 	}
 
 	tgBot.Start()
+}
+
+func runMigrations(connStr string) error {
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	return goose.Up(db, "migrations")
 }
