@@ -12,6 +12,6 @@ const startText = `Привет! Я бот для отслеживания об�
 /updated <название1>, <название2>, ... — отметить игры как обновлённые (название с запятой — в кавычках)
 /remove <название1>, <название2>, ... — удалить игры (название с запятой — в кавычках)`
 
-func (b *Bot) handleStart(c telebot.Context) error {
+func (b *bot) handleStart(c telebot.Context) error {
 	return c.Send(startText)
 }

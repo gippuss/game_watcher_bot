@@ -10,7 +10,7 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-func (b *Bot) handleUpdated(c telebot.Context) error {
+func (b *bot) handleUpdated(c telebot.Context) error {
 	payload := strings.TrimSpace(c.Message().Payload)
 	if payload == "" {
 		return c.Send("Использование: /updated <название1>, <название2>, ... — игры, которые вы уже обновили. Названия с запятой — в кавычках: \"Игра, часть 2\".")

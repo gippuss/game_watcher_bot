@@ -8,7 +8,7 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-func (b *Bot) handleList(c telebot.Context) error {
+func (b *bot) handleList(c telebot.Context) error {
 	ctx := context.Background()
 	games, err := b.gamesQuery.Get(ctx, model.GameFilter{})
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-func (b *Bot) handleCheck(c telebot.Context) error {
+func (b *bot) handleCheck(c telebot.Context) error {
 	ctx := context.Background()
 	games, err := b.gamesQuery.Get(ctx, model.GameFilter{})
 	if err != nil {
@@ -51,7 +51,7 @@ func (b *Bot) handleCheck(c telebot.Context) error {
 	return c.Send(fmt.Sprintf("Проверено игр: %d. Необходимо обновить игр: %d.", len(games), updatedCount.Load()))
 }
 
-func (b *Bot) checkOneGame(ctx context.Context, c telebot.Context, g model.Game, updatedCount *atomic.Int64, sendMu *sync.Mutex) {
+func (b *bot) checkOneGame(ctx context.Context, c telebot.Context, g model.Game, updatedCount *atomic.Int64, sendMu *sync.Mutex) {
 	latest, err := parser.LatestVersion(ctx, g.WebsiteURL)
 	if err != nil {
 		sendMu.Lock()

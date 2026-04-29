@@ -11,7 +11,7 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-func (b *Bot) handleRemove(c telebot.Context) error {
+func (b *bot) handleRemove(c telebot.Context) error {
 	payload := strings.TrimSpace(c.Message().Payload)
 	if payload == "" {
 		return c.Send("Использование: /remove <название1>, <название2>, ... — игры, которые нужно удалить.")

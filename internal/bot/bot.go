@@ -3,25 +3,34 @@ package bot
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/gippuss/game_watcher_bot/internal/repository"
 	"gopkg.in/telebot.v3"
 )
 
-type Bot struct {
+type Bot interface {
+	Start()
+	Stop()
+}
+
+type bot struct {
 	tg         *telebot.Bot
 	gamesQuery repository.GamesQuery
 
 	concurrency int
 }
 
-func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
-	tg, err := telebot.NewBot(telebot.Settings{Token: token})
+func New(token string, proxyClient *http.Client, gamesQuery repository.GamesQuery) (Bot, error) {
+	tg, err := telebot.NewBot(telebot.Settings{
+		Token:  token,
+		Client: proxyClient,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	b := &Bot{
+	b := &bot{
 		tg:          tg,
 		gamesQuery:  gamesQuery,
 		concurrency: concurrencyFromEnv(),
@@ -38,8 +47,13 @@ func New(token string, gamesQuery repository.GamesQuery) (*Bot, error) {
 	return b, nil
 }
 
-func (b *Bot) Start() {
+func (b *bot) Start() {
 	slog.Info("bot started")
 	slog.Info(fmt.Sprintf("level of concurrency: %d", b.concurrency))
 	b.tg.Start()
+}
+
+func (b *bot) Stop() {
+	slog.Info("bot stoped")
+	b.tg.Stop()
 }

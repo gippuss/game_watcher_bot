@@ -22,7 +22,7 @@ type uploadTask struct {
 	currentVer string
 }
 
-func (b *Bot) handleUpload(c telebot.Context) error {
+func (b *bot) handleUpload(c telebot.Context) error {
 	doc := c.Message().Document
 	if doc == nil {
 		return c.Send("Отправьте файл (документ) с расширением .csv после команды /upload.")
@@ -82,7 +82,7 @@ func (b *Bot) handleUpload(c telebot.Context) error {
 	return c.Send(fmt.Sprintf("Добавлено игр: %d.", added.Load()))
 }
 
-func (b *Bot) processUploadRow(ctx context.Context, c telebot.Context, task uploadTask, added *atomic.Int64, sendMu *sync.Mutex) {
+func (b *bot) processUploadRow(ctx context.Context, c telebot.Context, task uploadTask, added *atomic.Int64, sendMu *sync.Mutex) {
 	info, err := parser.FetchGameInfo(ctx, task.gameURL)
 	if err != nil {
 		sendMu.Lock()

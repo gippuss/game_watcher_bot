@@ -4,7 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gippuss/game_watcher_bot/internal/bot"
@@ -14,16 +18,27 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+const (
+	configKeyBotToken = "TELEGRAM_BOT_TOKEN"
+	configKeyDbUrl    = "DATABASE_URL"
+	configKeyProxy    = "HTTPS_PROXY"
+)
+
 func main() {
 	ctx := context.Background()
 
-	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	token := os.Getenv(configKeyBotToken)
 	if token == "" {
 		log.Fatal("failed to get telegram bot token")
 	}
-	connStr := os.Getenv("DATABASE_URL")
+	connStr := os.Getenv(configKeyDbUrl)
 	if connStr == "" {
 		log.Fatal("failed to get database url")
+	}
+	proxyStr := os.Getenv(configKeyProxy)
+	proxyURL, err := url.Parse(proxyStr)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if err := runMigrations(connStr); err != nil {
@@ -49,12 +64,23 @@ func main() {
 		log.Fatal("failed to create games query")
 	}
 
-	tgBot, err := bot.New(token, gamesQuery)
+	httpProxyClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		},
+	}
+
+	tgBot, err := bot.New(token, httpProxyClient, gamesQuery)
 	if err != nil {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
 	tgBot.Start()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	tgBot.Stop()
 }
 
 func runMigrations(connStr string) error {
